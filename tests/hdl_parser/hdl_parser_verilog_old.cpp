@@ -7,14 +7,14 @@
 #include "gtest/gtest.h"
 #include <boost/filesystem.hpp>
 #include <core/log.h>
-#include <hdl_parser/hdl_parser_verilog.h>
+#include <hdl_parser/hdl_parser_verilog_old.h>
 #include <iostream>
 #include <sstream>
 #include <boost/filesystem.hpp>
 
 using namespace test_utils;
 
-class hdl_parser_verilog_test : public ::testing::Test
+class hdl_parser_verilog_old_test : public ::testing::Test
 {
 protected:
 
@@ -29,7 +29,7 @@ protected:
     }
 };
 
-};
+
 
 /*                                    net_0
  *                  .--= INV (0) =----.
@@ -50,7 +50,7 @@ protected:
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_main_example)
+TEST_F(hdl_parser_verilog_old_test, check_main_example)
 {
     TEST_START
         /*{ // NOTE: inout nets can't be handled
@@ -79,7 +79,7 @@ TEST_F(hdl_parser_verilog_test, check_main_example)
                                     " ) ;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -165,7 +165,7 @@ TEST_F(hdl_parser_verilog_test, check_main_example)
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_comment_detection){
+TEST_F(hdl_parser_verilog_old_test, check_comment_detection){
     TEST_START
         {
             // Use the one-line-comment ('//')
@@ -176,7 +176,7 @@ TEST_F(hdl_parser_verilog_test, check_comment_detection){
                                     "  wire net_1;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -200,7 +200,7 @@ TEST_F(hdl_parser_verilog_test, check_comment_detection){
                                     "/*  wire comment_net;*/\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -224,7 +224,7 @@ TEST_F(hdl_parser_verilog_test, check_comment_detection){
                                     "  wire /*comment_net*/ net_1;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -251,7 +251,7 @@ TEST_F(hdl_parser_verilog_test, check_comment_detection){
 //                                    "  wire net_1;\n"
 //                                    "endmodule");
 //            test_def::capture_stdout();
-//            hdl_parser_verilog verilog_parser(input);
+//            hdl_parser_verilog_old verilog_parser(input);
 //            std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
 //            if (nl == nullptr)
 //            {
@@ -277,7 +277,7 @@ TEST_F(hdl_parser_verilog_test, check_comment_detection){
                                     "(*  wire comment_net;*)\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -301,7 +301,7 @@ TEST_F(hdl_parser_verilog_test, check_comment_detection){
                                     "  wire (*comment_net*) net_1;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -356,7 +356,7 @@ TEST_F(hdl_parser_verilog_test, check_comment_detection){
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_generic_map){
+TEST_F(hdl_parser_verilog_old_test, check_generic_map){
     TEST_START
         { // ISSUE: value has ')' at the end
             // Store an instance of all possible data types in one gate
@@ -380,7 +380,7 @@ TEST_F(hdl_parser_verilog_test, check_generic_map){
                                     " ) ;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -408,7 +408,7 @@ TEST_F(hdl_parser_verilog_test, check_generic_map){
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_vector_bounds){
+TEST_F(hdl_parser_verilog_old_test, check_vector_bounds){
     TEST_START
         {
             // Use a net vector of size 3
@@ -439,7 +439,7 @@ TEST_F(hdl_parser_verilog_test, check_vector_bounds){
                                     ") ;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -503,7 +503,7 @@ TEST_F(hdl_parser_verilog_test, check_vector_bounds){
                                     ") ;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -539,7 +539,7 @@ TEST_F(hdl_parser_verilog_test, check_vector_bounds){
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_assign)
+TEST_F(hdl_parser_verilog_old_test, check_assign)
 {
     TEST_START
         {
@@ -574,7 +574,7 @@ TEST_F(hdl_parser_verilog_test, check_assign)
                                     " ) ;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -628,7 +628,7 @@ TEST_F(hdl_parser_verilog_test, check_assign)
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_number_literal)
+TEST_F(hdl_parser_verilog_old_test, check_number_literal)
 {
     TEST_START
         create_temp_gate_lib();
@@ -665,7 +665,7 @@ TEST_F(hdl_parser_verilog_test, check_number_literal)
 
 
                 test_def::capture_stdout();
-                hdl_parser_verilog verilog_parser(input);
+                hdl_parser_verilog_old verilog_parser(input);
                 std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
                 if (nl == nullptr) {
                     std::cout << test_def::get_captured_stdout();
@@ -732,7 +732,7 @@ TEST_F(hdl_parser_verilog_test, check_number_literal)
 
 
                 test_def::capture_stdout();
-                hdl_parser_verilog verilog_parser(input);
+                hdl_parser_verilog_old verilog_parser(input);
                 std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
                 if (nl == nullptr) {
                     std::cout << test_def::get_captured_stdout();
@@ -800,7 +800,7 @@ TEST_F(hdl_parser_verilog_test, check_number_literal)
 
 
                 test_def::capture_stdout();
-                hdl_parser_verilog verilog_parser(input);
+                hdl_parser_verilog_old verilog_parser(input);
                 std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
                 if (nl == nullptr) {
                     std::cout << test_def::get_captured_stdout();
@@ -868,7 +868,7 @@ TEST_F(hdl_parser_verilog_test, check_number_literal)
 
 
                 test_def::capture_stdout();
-                hdl_parser_verilog verilog_parser(input);
+                hdl_parser_verilog_old verilog_parser(input);
                 std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
                 if (nl == nullptr) {
                     std::cout << test_def::get_captured_stdout();
@@ -935,7 +935,7 @@ TEST_F(hdl_parser_verilog_test, check_number_literal)
 
 
                 test_def::capture_stdout();
-                hdl_parser_verilog verilog_parser(input);
+                hdl_parser_verilog_old verilog_parser(input);
                 std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
                 if (nl == nullptr) {
                     std::cout << test_def::get_captured_stdout();
@@ -1004,7 +1004,7 @@ TEST_F(hdl_parser_verilog_test, check_number_literal)
 
 
                 test_def::capture_stdout();
-                hdl_parser_verilog verilog_parser(input);
+                hdl_parser_verilog_old verilog_parser(input);
                 std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
                 if (nl == nullptr) {
                     std::cout << test_def::get_captured_stdout();
@@ -1043,7 +1043,7 @@ TEST_F(hdl_parser_verilog_test, check_number_literal)
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_vector_assignment)
+TEST_F(hdl_parser_verilog_old_test, check_vector_assignment)
 {
     TEST_START
         create_temp_gate_lib();
@@ -1065,7 +1065,7 @@ TEST_F(hdl_parser_verilog_test, check_vector_assignment)
                      "  .\\O (global_out )\n"
                      " ) ;\n"
                      "endmodule";
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
             ASSERT_NE(nl, nullptr);
 
@@ -1102,7 +1102,7 @@ TEST_F(hdl_parser_verilog_test, check_vector_assignment)
                      "  .\\O (global_out )\n"
                      " ) ;\n"
                      "endmodule";
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
             ASSERT_NE(nl, nullptr);
 
@@ -1139,7 +1139,7 @@ TEST_F(hdl_parser_verilog_test, check_vector_assignment)
                      "  .\\O (global_out )\n"
                      " ) ;\n"
                      "endmodule";
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
             ASSERT_NE(nl, nullptr);
 
@@ -1178,7 +1178,7 @@ TEST_F(hdl_parser_verilog_test, check_vector_assignment)
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_global_gnd_vcc_gates)
+TEST_F(hdl_parser_verilog_old_test, check_global_gnd_vcc_gates)
 {
     TEST_START
         {
@@ -1192,7 +1192,7 @@ TEST_F(hdl_parser_verilog_test, check_global_gnd_vcc_gates)
                                     " ) ;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -1220,7 +1220,7 @@ TEST_F(hdl_parser_verilog_test, check_global_gnd_vcc_gates)
                                     " ) ;\n"
                                     "endmodule");
             test_def::capture_stdout();
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
             if (nl == nullptr)
             {
@@ -1245,7 +1245,7 @@ TEST_F(hdl_parser_verilog_test, check_global_gnd_vcc_gates)
  *
  * Functions: parse
  */
-TEST_F(hdl_parser_verilog_test, check_invalid_input)
+TEST_F(hdl_parser_verilog_old_test, check_invalid_input)
 {
     TEST_START
         {
@@ -1263,7 +1263,7 @@ TEST_F(hdl_parser_verilog_test, check_invalid_input)
                      "  .\\O (global_out )\n"
                      " ) ;\n"
                      "endmodule";
-            hdl_parser_verilog verilog_parser(input);
+            hdl_parser_verilog_old verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
             EXPECT_EQ(nl, nullptr);
         }
