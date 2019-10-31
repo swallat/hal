@@ -772,6 +772,272 @@ TEST_F(hdl_parser_verilog_test, check_global_gnd_vcc_gates)
     TEST_END
 }
 
+/** (NOTE: old Description)
+ * Testing the usage of additional entities. Entities that are used by the main entity (the last one) are recursively
+ * split in gates that are part of the gate library, while the original entity hierarchy is represented by the module-
+ * hierarchy of the netlist. Therefore, there can be multiple gates with the same name, so names that occur twice or
+ * more will be given a unique suffix.
+ *
+ * Functions: parse
+ */
+TEST_F(hdl_parser_verilog_test, check_multiple_entities)
+{
+    TEST_START
+        {
+            // Create a new entity with an attribute that is used once by the main entity
+            /*                               ---------------------------------------------.
+             *                              | child_mod                                   |
+             *                              |                                             |
+             *  global_in ---=| gate_0 |=---=---=| gate_0_child |=---=| gate_1_child |=---=---=| gate_1 |=--- global_out
+             *                              |                                             |
+             *                              '---------------------------------------------'
+             */
+            std::stringstream input("module ENT_CHILD (\n"
+                                    "  child_in,\n"
+                                    "  child_out\n"
+                                    " ) ;\n"
+                                    "  input child_in ;\n"
+                                    "  output child_out ;\n"
+                                    "  wire net_0_child ;\n"
+                                    "INV gate_0_child (\n"
+                                    "  .\\I (child_in ),\n"
+                                    "  .\\O (net_0_child )\n"
+                                    " ) ;\n"
+                                    "INV gate_1_child (\n"
+                                    "  .\\I (net_0_child ),\n"
+                                    "  .\\O (child_out )\n"
+                                    " ) ;\n"
+                                    "endmodule\n"
+                                    "\n"
+                                    "module ENT_TO (\n"
+                                    "  net_global_in,\n"
+                                    "  net_global_out\n"
+                                    " ) ;\n"
+                                    "  input net_global_in ;\n"
+                                    "  output net_global_out ;\n"
+                                    "  wire net_0 ;\n"
+                                    "  wire net_1 ;\n"
+                                    "INV gate_0 (\n"
+                                    "  .\\I (net_global_in ),\n"
+                                    "  .\\O (net_0 )\n"
+                                    " ) ;\n"
+                                    "ENT_CHILD child_mod (\n"
+                                    "  .\\child_in (net_0 ),\n"
+                                    "  .\\child_out (net_1 )\n"
+                                    " ) ;\n"
+                                    "INV gate_1 (\n"
+                                    "  .\\I (net_1 ), \n"
+                                    "  .\\O (net_global_out )\n"
+                                    " ) ;\n"
+                                    "endmodule");
+            hdl_parser_verilog verilog_parser(input);
+            std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
+
+            // Test that all gates are created
+            ASSERT_NE(nl, nullptr);
+            ASSERT_EQ(nl->get_gates("INV", "gate_0").size(), 1);
+            ASSERT_EQ(nl->get_gates("INV", "gate_1").size(), 1);
+            ASSERT_EQ(nl->get_gates("INV", "gate_0_child").size(), 1);
+            ASSERT_EQ(nl->get_gates("INV", "gate_1_child").size(), 1);
+            std::shared_ptr<gate> gate_0 = *nl->get_gates("INV", "gate_0").begin();
+            std::shared_ptr<gate> gate_1 = *nl->get_gates("INV", "gate_1").begin();
+            std::shared_ptr<gate> gate_0_child = *nl->get_gates("INV", "gate_0_child").begin();
+            std::shared_ptr<gate> gate_1_child = *nl->get_gates("INV", "gate_1_child").begin();
+
+            // Test that all nets are created
+            ASSERT_EQ(nl->get_nets("net_0").size(), 1);
+            ASSERT_EQ(nl->get_nets("net_1").size(), 1);
+            ASSERT_EQ(nl->get_nets("net_global_in").size(), 1);
+            ASSERT_EQ(nl->get_nets("net_global_out").size(), 1);
+            ASSERT_EQ(nl->get_nets("net_0_child").size(), 1);
+            std::shared_ptr<net> net_0 = *nl->get_nets("net_0").begin();
+            std::shared_ptr<net> net_1 = *nl->get_nets("net_1").begin();
+            std::shared_ptr<net> net_global_in= *nl->get_nets("net_global_in").begin();
+            std::shared_ptr<net> net_global_out= *nl->get_nets("net_global_out").begin();
+            std::shared_ptr<net> net_0_child= *nl->get_nets("net_0_child").begin();
+
+            // Test that all nets are connected correctly
+            EXPECT_EQ(gate_0->get_fan_in_net("I"), net_global_in);
+            EXPECT_EQ(gate_0->get_fan_out_net("O"), net_0);
+            EXPECT_EQ(gate_1->get_fan_in_net("I"), net_1);
+            EXPECT_EQ(gate_1->get_fan_out_net("O"), net_global_out);
+            EXPECT_EQ(gate_0_child->get_fan_in_net("I"), net_0);
+            EXPECT_EQ(gate_0_child->get_fan_out_net("O"), net_0_child);
+            EXPECT_EQ(gate_1_child->get_fan_in_net("I"), net_0_child);
+            EXPECT_EQ(gate_1_child->get_fan_out_net("O"), net_1);
+            // Check that the attributes of the child entities port are inherit correctly to the connecting net
+            //EXPECT_EQ(net_0->get_data_by_key("vhdl_attribute", "child_net_attri"), std::make_tuple("string","child_net_attribute")); // (NOTE: only VHDL?)
+
+            // Test that the modules are created and assigned correctly
+            std::shared_ptr<module> top_mod = nl->get_top_module();
+            ASSERT_EQ(top_mod->get_submodules().size(), 1);
+            std::shared_ptr<module> child_mod = *top_mod->get_submodules().begin();
+            EXPECT_EQ(child_mod->get_name(), "ENT_CHILD");
+            EXPECT_EQ(top_mod->get_gates(), std::set<std::shared_ptr<gate>>({gate_0, gate_1}));
+            EXPECT_EQ(child_mod->get_gates(), std::set<std::shared_ptr<gate>>({gate_0_child, gate_1_child}));
+            //EXPECT_EQ(child_mod->get_data_by_key("vhdl_attribute", "child_attri"), std::make_tuple("string","child_attribute")); // (NOTE: only VHDL?)
+        }
+        {   // NOTE (TASK): vhdl -> verilog
+            // Create a netlist with the following MODULE hierarchy (assigned gates in '()'):
+            /*
+             *                               .---- CHILD_TWO --- (gate_child_two)
+             *                               |
+             *              .----- CHILD_ONE-+
+             *              |                |
+             *  TOP_MODULE -+                +---- CHILD_TWO --- (gate_child_two)
+             *              |                |
+             *              |                '---- (gate_child_one)
+             *              |
+             *              +----- CHILD_TWO --- (gate_child_two)
+             *              |
+             *              '---- (gate_top)
+             *
+             */
+            // Testing the correct build of the module hierarchy. Moreover the correct substitution of gate and net names,
+            // which would be added twice (because an entity can be used multiple times) is tested as well.
+
+            std::stringstream input("module ENT_CHILD_TWO (\n"
+                                    "  I_c2,\n"
+                                    "  O_c2\n"
+                                    " ) ;\n"
+                                    "  input I_c2 ;\n"
+                                    "  output O_c2 ;\n"
+                                    "INV gate_child_two (\n"
+                                    "  .\\I (I_c2 ),\n"
+                                    "  .\\O (O_c2 )\n"
+                                    " ) ;\n"
+                                    "endmodule\n"
+                                    "\n"
+                                    "module ENT_CHILD_ONE (\n"
+                                    "  I_c1,\n"
+                                    "  O_c1\n"
+                                    " ) ;\n"
+                                    "  input I_c1 ;\n"
+                                    "  output O_c1 ;\n"
+                                    "  wire net_child_0 ;\n"
+                                    "  wire net_child_1 ;\n"
+                                    "ENT_CHILD_TWO gate_0_ent_two (\n"
+                                    "  .\\I_c2 (I_c1 ),\n"
+                                    "  .\\O_c2 (net_child_0 )\n"
+                                    " ) ;\n"
+                                    "ENT_CHILD_TWO gate_1_ent_two (\n"
+                                    "  .\\I_c2 (net_child_0 ),\n"
+                                    "  .\\O_c2 (net_child_1 )\n"
+                                    " ) ;\n"
+                                    "INV gate_child_one (\n"
+                                    "  .\\I (net_child_1 ),\n"
+                                    "  .\\O (O_c1 )\n"
+                                    " ) ;\n"
+                                    "endmodule\n"
+                                    "\n"
+                                    "module ENT_TOP (\n"
+                                    "  net_global_in,\n"
+                                    "  net_global_out\n"
+                                    " ) ;\n"
+                                    "  input net_global_in ;\n"
+                                    "  output net_global_out ;\n"
+                                    "  wire net_0 ;\n"
+                                    "  wire net_1 ;\n"
+                                    "ENT_CHILD_ONE child_one_mod (\n"
+                                    "  .\\I_c1 (net_global_in ),\n"
+                                    "  .\\O_c1 (net_0 )\n"
+                                    " ) ;\n"
+                                    "ENT_CHILD_TWO child_two_mod (\n"
+                                    "  .\\I_c2 (net_0 ),\n"
+                                    "  .\\O_c2 (net_1 )\n"
+                                    " ) ;\n"
+                                    "INV gate_top (\n"
+                                    "  .\\I (net_1 ),\n"
+                                    "  .\\O (net_global_out )\n"
+                                    " ) ;\n"
+                                    "endmodule");
+            hdl_parser_verilog verilog_parser(input);
+            std::shared_ptr<netlist> nl = verilog_parser.parse(g_lib_name);
+
+            // Test if all modules are created and assigned correctly
+            ASSERT_NE(nl, nullptr);
+            EXPECT_EQ(nl->get_gates().size(), 5); // 3 * gate_child_two + gate_child_one + gate_top
+            EXPECT_EQ(nl->get_modules().size(), 5); // 3 * ENT_CHILD_TWO + ENT_CHILD_ONE + ENT_TOP
+            std::shared_ptr<module> top_module = nl->get_top_module();
+
+            ASSERT_EQ(top_module->get_submodules().size(), 2);
+            std::shared_ptr<module> top_child_one = *top_module->get_submodules().begin();
+            std::shared_ptr<module> top_child_two = *(++top_module->get_submodules().begin());
+            if (top_child_one->get_submodules().empty()){
+                std::swap(top_child_one, top_child_two);
+            }
+
+            ASSERT_EQ(top_child_one->get_submodules().size(), 2);
+            std::shared_ptr<module> one_child_0 = *(top_child_one->get_submodules().begin());
+            std::shared_ptr<module> one_child_1 = *(++top_child_one->get_submodules().begin());
+
+            // Test if all names that are used multiple times are substituted correctly
+            std::string module_suffix = "_module_inst";
+
+            EXPECT_EQ(top_child_one->get_name(), "ENT_CHILD_ONE");
+
+            EXPECT_TRUE(core_utils::starts_with(top_child_two->get_name(), "ENT_CHILD_TWO" + module_suffix));
+            EXPECT_TRUE(core_utils::starts_with(one_child_0->get_name(), "ENT_CHILD_TWO" + module_suffix));
+            EXPECT_TRUE(core_utils::starts_with(one_child_1->get_name(), "ENT_CHILD_TWO" + module_suffix));
+            // All 3 names should be unique
+            EXPECT_EQ(std::set<std::string>({top_child_two->get_name(), one_child_0->get_name(), one_child_1->get_name()}).size(), 3);
+
+            // Test if the gate names are substituted correctly as well (gate_child_two is used multiple times)
+            std::string gate_suffix = "_module_inst"; // NOTE: Why module_inst ?
+
+            ASSERT_EQ(top_module->get_gates().size(), 1);
+            EXPECT_EQ((*top_module->get_gates().begin())->get_name(), "gate_top");
+
+            ASSERT_EQ(top_child_one->get_gates().size(), 1);
+            EXPECT_EQ((*top_child_one->get_gates().begin())->get_name(), "gate_child_one");
+
+            ASSERT_EQ( top_child_two->get_gates().size(), 1);
+            ASSERT_EQ( one_child_0->get_gates().size(), 1);
+            ASSERT_EQ( one_child_1->get_gates().size(), 1);
+            std::shared_ptr<gate> gate_child_two_0 = *top_child_two->get_gates().begin();
+            std::shared_ptr<gate> gate_child_two_1 = *one_child_0->get_gates().begin();
+            std::shared_ptr<gate> gate_child_two_2 = *one_child_1->get_gates().begin();
+
+            EXPECT_TRUE(core_utils::starts_with(gate_child_two_0->get_name(), "gate_child_two" + gate_suffix));
+            EXPECT_TRUE(core_utils::starts_with(gate_child_two_1->get_name(), "gate_child_two" + gate_suffix));
+            EXPECT_TRUE(core_utils::starts_with(gate_child_two_2->get_name(), "gate_child_two" + gate_suffix));
+            // All 3 names should be unique
+            EXPECT_EQ(std::set<std::string>({gate_child_two_0->get_name(), gate_child_two_1->get_name(), gate_child_two_2->get_name()}).size(), 3);
+        }
+//        {
+//            // Use the 'entity'-keyword in the context of a gate type (should be ignored)
+//            std::stringstream input("-- Device\t: device_name\n"
+//                                    "entity TEST_Comp is\n"
+//                                    "  port (\n"
+//                                    "    net_global_inout : inout STD_LOGIC := 'X';\n"
+//                                    "  );\n"
+//                                    "end TEST_Comp;\n"
+//                                    "architecture STRUCTURE of TEST_Comp is\n"
+//                                    "begin\n"
+//                                    "  gate_0 : entity INV\n" // <- usage of the 'entity' keyword
+//                                    "    port map (\n"
+//                                    "      O => net_global_inout\n"
+//                                    "    );\n"
+//                                    "end STRUCTURE;");
+//            test_def::capture_stdout();
+//            hdl_parser_vhdl vhdl_parser(input);
+//            std::shared_ptr<netlist> nl = vhdl_parser.parse(g_lib_name);
+//            if (nl == nullptr)
+//            {
+//                std::cout << test_def::get_captured_stdout();
+//            }
+//            else
+//            {
+//                test_def::get_captured_stdout();
+//            }
+//
+//            ASSERT_NE(nl, nullptr);
+//            ASSERT_FALSE(nl->get_gates("INV", "gate_0").empty());
+//
+//        }
+    TEST_END
+}
+
 /**
  * Testing the correct handling of invalid input
  *
