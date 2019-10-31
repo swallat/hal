@@ -54,7 +54,7 @@ protected:
 TEST_F(hdl_parser_verilog_test, check_main_example)
 {
     TEST_START
-        /*{ // NOTE: inout nets can't be handled
+        /*{ // NOTE: old
             std::stringstream input("module top (\n"
                                     "  global_in,\n"
                                     "  global_out \n"
@@ -258,7 +258,7 @@ TEST_F(hdl_parser_verilog_test, check_generic_map){
                                     "  input global_in ;\n"
                                     "  output global_out ;\n"
                                     "INV #(\n"
-                                    ".key_integer(1234),\n"                   // no prefix => hex
+                                    ".key_integer(1234),\n"                   // no prefix => integer (stored in hex)
                                     ".key_floating_point(1.234),\n"
                                     ".key_string(\"test_string\"),\n"
                                     ".key_bit_vector_hex('habc),\n"           // All values are 'ABC' in hex
@@ -295,9 +295,8 @@ TEST_F(hdl_parser_verilog_test, check_generic_map){
             EXPECT_EQ(gate_0->get_data_by_key("generic","key_bit_vector_dec"), std::make_tuple("bit_vector", "abc"));
             EXPECT_EQ(gate_0->get_data_by_key("generic","key_bit_vector_oct"), std::make_tuple("bit_vector", "abc"));
             EXPECT_EQ(gate_0->get_data_by_key("generic","key_bit_vector_bin"), std::make_tuple("bit_vector", "abc"));
-
-            // NOTE: check the other data types
         }
+
     TEST_END
 }
 
@@ -424,12 +423,12 @@ TEST_F(hdl_parser_verilog_test, check_vector_bounds){
 
 
 /**
- * // NOTE: Description is related to the old test (must be changed)
- * Testing the correct handling of the 'assign' keyword. The assign-keyword is only used, to assign one net to another one
+ * Testing the correct handling of the 'assign' keyword. The assign-keyword is only used, to assign n nets to other n nets
  * (so both identifiers can be used as the same net)
  * Therefore only statements like
  * "assing signal_1 = signal_0" are valid, which would only create one net named "signal_0" that is also connected to all
- * gates signal_1 is connected to. Assigning multiple vectors at once is also supported (for example: assign sig_vec_1[0:3] = sig_vec_2[0:3])
+ * gates signal_1 is connected to. Assigning multiple nets of a vector at once is also supported (for example: assign sig_vec_1[0:3] = sig_vec_2[0:3])
+ * as well as lists of vectors and/or single nets (for example: "assign {sig_vec_1, signal_1} = {sig_vec_big[0:4]}", if |sig_vec_1|=4)
  *
  *  Note: logic assignments like "assign net_0 = net_1 ^ net_2" are not supported
  *
@@ -668,7 +667,7 @@ TEST_F(hdl_parser_verilog_test, check_assign)
                                     "  .\\I(3) (2_d_vector_1[0][1] ),\n"
                                     "  .\\O (global_out_2 )\n"
                                     " ) ;\n"
-                                    "endmodule"); // TODO: insert (assign_test.v)
+                                    "endmodule");
             //test_def::capture_stdout();
             hdl_parser_verilog verilog_parser(input);
             std::shared_ptr<netlist> nl = verilog_parser.parse(temp_lib_name);
