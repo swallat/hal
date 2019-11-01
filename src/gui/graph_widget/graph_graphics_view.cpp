@@ -13,6 +13,7 @@
 #include "gui/graph_widget/items/standard_graphics_gate.h"
 #include "gui/graph_widget/items/standard_graphics_module.h"
 #include "gui/graph_widget/items/standard_graphics_net.h"
+#include "gui/graph_widget/items/utility_items/drag_shadow_gate.h"
 #include "gui/gui_globals.h"
 #include "netlist/gate.h"
 #include "netlist/module.h"
@@ -42,6 +43,9 @@ graph_graphics_view::graph_graphics_view(graph_widget* parent)
 
     connect(&g_selection_relay, &selection_relay::subfocus_changed, this, &graph_graphics_view::conditional_update);
     connect(this, &graph_graphics_view::customContextMenuRequested, this, &graph_graphics_view::show_context_menu);
+    connect(&g_settings_relay, &settings_relay::setting_changed, this, &graph_graphics_view::handle_global_setting_changed);
+
+    initialize_settings();
 
     setContextMenuPolicy(Qt::CustomContextMenu);
     setOptimizationFlags(QGraphicsView::DontSavePainterState);
@@ -51,6 +55,14 @@ graph_graphics_view::graph_graphics_view(graph_widget* parent)
 
     graphics_view_zoom* z = new graphics_view_zoom(this);
     z->set_modifiers(Qt::NoModifier);
+}
+
+void graph_graphics_view::initialize_settings()
+{
+    unsigned int drag_modifier_setting = g_settings_manager.get("graph_view/drag_mode_modifier").toUInt();
+    m_drag_modifier = Qt::KeyboardModifier(drag_modifier_setting);
+    unsigned int move_modifier_setting = g_settings_manager.get("graph_view/move_modifier").toUInt();
+    m_move_modifier = Qt::KeyboardModifier(move_modifier_setting);
 }
 
 void graph_graphics_view::conditional_update()
@@ -189,6 +201,7 @@ void graph_graphics_view::paintEvent(QPaintEvent* event)
     graphics_scene::set_grid_type(m_grid_type);
 
     graphics_item::set_lod(lod);
+    drag_shadow_gate::set_lod(lod);
 
     standard_graphics_module::update_alpha();
     standard_graphics_gate::update_alpha();
@@ -227,7 +240,7 @@ void graph_graphics_view::drawForeground(QPainter* painter, const QRectF& rect)
 
 void graph_graphics_view::mousePressEvent(QMouseEvent* event)
 {
-    if (event->modifiers() == Qt::ShiftModifier)
+    if (event->modifiers() == m_move_modifier)
     {
         if (event->button() == Qt::LeftButton)
             m_move_position = event->pos();
@@ -247,9 +260,16 @@ void graph_graphics_view::mousePressEvent(QMouseEvent* event)
     else if (event->button() == Qt::LeftButton)
     {
         graphics_item* item = static_cast<graphics_item*>(itemAt(event->pos()));
-        m_drag_item = item_draggable(item) ? static_cast<graphics_gate*>(item) : nullptr; // can be nullptr if no item
-        m_drag_mousedown_position = event->pos();
-        m_drag_cursor_offset = m_drag_mousedown_position - mapFromScene(item->pos());
+        if (item && item_draggable(item))
+        {
+            m_drag_item = static_cast<graphics_gate*>(item);
+            m_drag_mousedown_position = event->pos();
+            m_drag_cursor_offset = m_drag_mousedown_position - mapFromScene(item->pos());
+        }
+        else
+        {
+            m_drag_item = nullptr;
+        }
 
         // we still need the normal mouse logic for single clicks
         QGraphicsView::mousePressEvent(event);
@@ -277,7 +297,7 @@ void graph_graphics_view::mouseMoveEvent(QMouseEvent* event)
 
     if (event->buttons().testFlag(Qt::LeftButton))
     {
-        if (event->modifiers() == Qt::ShiftModifier)
+        if (event->modifiers() == m_move_modifier)
         {
             QScrollBar* hBar = horizontalScrollBar();
             QScrollBar* vBar = verticalScrollBar();
@@ -308,42 +328,78 @@ void graph_graphics_view::mouseMoveEvent(QMouseEvent* event)
 
 void graph_graphics_view::dragEnterEvent(QDragEnterEvent *event)
 {
-    qDebug() << "dragEnter";
     if (event->source() == this && event->proposedAction() == Qt::MoveAction)
     {
         event->acceptProposedAction();
         QSizeF size(m_drag_item->width(), m_drag_item->height());
-        QPointF pos = m_drag_item->scenePos();
+        QPointF mouse = event->posF();
+        QPointF pos = mapToScene(mouse.x(), mouse.y()) - m_drag_cursor_offset;
+        if (g_selection_relay.m_selected_gates.size() > 1)
+        {
+            // if we are in multi-select mode, reduce the selection to the
+            // item we are dragging
+            g_selection_relay.clear();
+            g_selection_relay.m_selected_gates.insert(m_drag_item->id());
+            g_selection_relay.m_focus_type = selection_relay::item_type::gate;
+            g_selection_relay.m_focus_id   = m_drag_item->id();
+            g_selection_relay.m_subfocus   = selection_relay::subfocus::none;
+            g_selection_relay.relay_selection_changed(nullptr);
+        }
         static_cast<graphics_scene*>(scene())
-            ->start_drag_shadow(pos, size);
-        // Process the data from the event.
+            ->start_drag_shadow(pos, size, m_drag_item);
     }
     else
     {
         QGraphicsView::dragEnterEvent(event);
     }
 }
+
 void graph_graphics_view::dragLeaveEvent(QDragLeaveEvent *event)
 {
     static_cast<graphics_scene*>(scene())->stop_drag_shadow();
-    //QGraphicsView::dragLeaveEvent(event);
 }
+
 void graph_graphics_view::dragMoveEvent(QDragMoveEvent *event)
 {
-    QPoint mouse = event->pos();
-    QPoint shadow = mouse - m_drag_cursor_offset;
-    static_cast<graphics_scene*>(scene())
-        ->move_drag_shadow(mapToScene(shadow.x(), shadow.y()));
-    // event->acceptProposedAction();
-    //QGraphicsView::dragMoveEvent(event);
+    if (event->source() == this && event->proposedAction() == Qt::MoveAction)
+    {
+        QPoint mouse = event->pos();
+        bool modifierPressed = event->keyboardModifiers() == m_drag_modifier;
+        QPoint shadow = mouse - m_drag_cursor_offset;
+        static_cast<graphics_scene*>(scene())
+            ->move_drag_shadow(mapToScene(shadow.x(), shadow.y()),
+            modifierPressed ? graphics_scene::drag_mode::swap : graphics_scene::drag_mode::move);
+    }
 }
+
 void graph_graphics_view::dropEvent(QDropEvent *event)
 {
     if (event->source() == this && event->proposedAction() == Qt::MoveAction)
     {
         event->acceptProposedAction();
-        static_cast<graphics_scene*>(scene())->stop_drag_shadow();
-        // Process the data from the event.
+        graphics_scene* s = static_cast<graphics_scene*>(scene());
+        bool success = s->stop_drag_shadow();
+        if (success)
+        {
+            bool modifierPressed = event->keyboardModifiers() == m_drag_modifier;
+            // TODO: Once the layouter data structures are defined & stable,
+            // add code to move the gates to the correct layouter boxes
+            // TODO: Also add a mechanism to insert rows and columns of boxes,
+            // like in a table calculation software
+            if (modifierPressed)
+            {
+                // swap mode; swap gates
+                QPointF targetPos = s->drop_target_item()->pos();
+                s->drop_target_item()->setPos(m_drag_item->pos());
+                m_drag_item->setPos(targetPos);
+            }
+            else
+            {
+                // move mode; move gate to the selected location
+                m_drag_item->setPos(s->drop_target());
+            }
+            // TODO: Once available, trigger a re-layout of all nets here
+        }
     }
     else
     {
@@ -650,6 +706,20 @@ void graph_graphics_view::handle_select_inputs()
             }
         }
         context->add({}, gates);
+    }
+}
+
+void graph_graphics_view::handle_global_setting_changed(void* sender, const QString& key, const QVariant& value)
+{
+    if (key == "graph_view/drag_mode_modifier")
+    {
+        unsigned int modifier = value.toUInt();
+        m_drag_modifier = Qt::KeyboardModifier(modifier);
+    }
+    else if (key == "graph_view/move_modifier")
+    {
+        unsigned int modifier = value.toUInt();
+        m_move_modifier = Qt::KeyboardModifier(modifier);
     }
 }
 

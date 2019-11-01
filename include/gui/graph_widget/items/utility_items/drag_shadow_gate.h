@@ -20,9 +20,16 @@ public:
 
     qreal width() const;
     qreal height() const;
+    QSizeF size() const;
 
     void set_width(const qreal width);
     void set_height(const qreal height);
+
+    void set_fits(const bool fits);
+    bool fits() const;
+
+    static void set_lod(const qreal lod);
+    static void load_settings();
 
 protected:
     void paint(QPainter* painter, const QStyleOptionGraphicsItem* option, QWidget* widget = nullptr) Q_DECL_OVERRIDE;
@@ -31,6 +38,13 @@ protected:
 
 private:
     // static bool s_delegate_paint;
+    static qreal s_lod;
+    static QPen s_pen;
+    static QColor s_color_pen[];
+    static QColor s_color_solid[];
+    static QColor s_color_translucent[];
+
+    bool m_fits;
 
     qreal m_width;
     qreal m_height;
