@@ -966,8 +966,6 @@ TEST_F(hdl_parser_verilog_test, check_multiple_entities)
             EXPECT_EQ(gate_0_child->get_fan_out_net("O"), net_0_child);
             EXPECT_EQ(gate_1_child->get_fan_in_net("I"), net_0_child);
             EXPECT_EQ(gate_1_child->get_fan_out_net("O"), net_1);
-            // Check that the attributes of the child entities port are inherit correctly to the connecting net
-            //EXPECT_EQ(net_0->get_data_by_key("vhdl_attribute", "child_net_attri"), std::make_tuple("string","child_net_attribute")); // (NOTE: only VHDL?)
 
             // Test that the modules are created and assigned correctly
             std::shared_ptr<module> top_mod = nl->get_top_module();
@@ -976,7 +974,6 @@ TEST_F(hdl_parser_verilog_test, check_multiple_entities)
             EXPECT_EQ(child_mod->get_name(), "ENT_CHILD");
             EXPECT_EQ(top_mod->get_gates(), std::set<std::shared_ptr<gate>>({gate_0, gate_1}));
             EXPECT_EQ(child_mod->get_gates(), std::set<std::shared_ptr<gate>>({gate_0_child, gate_1_child}));
-            //EXPECT_EQ(child_mod->get_data_by_key("vhdl_attribute", "child_attri"), std::make_tuple("string","child_attribute")); // (NOTE: only VHDL?)
         }
         {
             // Create a netlist with the following MODULE hierarchy (assigned gates in '()'):

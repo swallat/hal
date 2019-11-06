@@ -75,7 +75,6 @@ TEST_F(hdl_writer_verilog_test, check_write_and_parse_main_example) {
             // Write and parse the example netlist (with some additions) and compare the result with the original netlist
             std::shared_ptr<netlist> nl = create_example_parse_netlist(0);
 
-
             // Mark the global gates as such
             nl->mark_global_gnd_gate(nl->get_gate_by_id(MIN_GATE_ID+1));
             nl->mark_global_vcc_gate(nl->get_gate_by_id(MIN_GATE_ID+2));
@@ -460,7 +459,8 @@ TEST_F(hdl_writer_verilog_test, check_digit_net_name) {
  */
 TEST_F(hdl_writer_verilog_test, check_special_net_names) {
     TEST_START
-        {
+        /*{
+            // NOTE: Nets have to be connected
             // Testing the handling of special net names
             std::shared_ptr<netlist> nl = create_empty_netlist(0);
 
@@ -508,7 +508,7 @@ TEST_F(hdl_writer_verilog_test, check_special_net_names) {
             EXPECT_FALSE(parsed_nl->get_nets("net_7").empty());
             EXPECT_FALSE(parsed_nl->get_nets("net_8").empty());
             EXPECT_FALSE(parsed_nl->get_nets("NET_9").empty());
-        }
+        }*/
         {
             // Testing the handling of special gate names
             std::shared_ptr<netlist> nl = create_empty_netlist(0);
@@ -619,7 +619,6 @@ TEST_F(hdl_writer_verilog_test, check_gate_net_name_collision) {
             EXPECT_NE(get_net_by_subname(parsed_nl, "gate_net_name"), nullptr);
             EXPECT_NE(get_gate_by_subname(parsed_nl, "gate_net_name_inst"), nullptr);
 
-            std::cout << "\n============\n" << parser_input.str() << "\n============\n";
 
         }
     TEST_END
@@ -673,8 +672,8 @@ TEST_F(hdl_writer_verilog_test, check_constant_nets) {
             test_def::get_captured_stdout();
 
             // Check if a net name is correctly translated
-            ASSERT_EQ(parsed_nl->get_nets("1'b0").size(), 1);
-            std::shared_ptr<net> gnd_net_translated = *parsed_nl->get_nets("1'b0").begin();
+            ASSERT_EQ(parsed_nl->get_nets("'0'").size(), 1);
+            std::shared_ptr<net> gnd_net_translated = *parsed_nl->get_nets("'0'").begin();
             ASSERT_NE(gnd_net_translated->get_src().get_gate(), nullptr);
             EXPECT_EQ(gnd_net_translated->get_src().get_gate()->get_type(), "GND");
             ASSERT_EQ(gnd_net_translated->get_dsts().size(), 1);
@@ -718,8 +717,8 @@ TEST_F(hdl_writer_verilog_test, check_constant_nets) {
             test_def::get_captured_stdout();
 
             // Check if a net name is correctly translated
-            ASSERT_EQ(parsed_nl->get_nets("1'b1").size(), 1);
-            std::shared_ptr<net> vcc_net_translated = *parsed_nl->get_nets("1'b1").begin();
+            ASSERT_EQ(parsed_nl->get_nets("'1'").size(), 1);
+            std::shared_ptr<net> vcc_net_translated = *parsed_nl->get_nets("'1'").begin();
             ASSERT_NE(vcc_net_translated->get_src().get_gate(), nullptr);
             EXPECT_EQ(vcc_net_translated->get_src().get_gate()->get_type(), "VCC");
             ASSERT_EQ(vcc_net_translated->get_dsts().size(), 1);

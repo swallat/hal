@@ -6,13 +6,16 @@ std::shared_ptr<netlist> test_utils::create_empty_netlist(const int id)
 {
     NO_COUT_BLOCK;
     std::shared_ptr<gate_library> gl = gate_library_manager::get_gate_library(g_lib_name);
-    std::shared_ptr<netlist> g_obj   = std::make_shared<netlist>(gl);
+    std::shared_ptr<netlist> nl   = std::make_shared<netlist>(gl);
+    nl->set_device_name("test_device");
+    nl->set_design_name("test_design");
+    nl->get_top_module()->set_name("top");
 
     if (id >= 0)
     {
-        g_obj->set_id(id);
+        nl->set_id(id);
     }
-    return g_obj;
+    return nl;
 }
 
 endpoint test_utils::get_endpoint(const std::shared_ptr<gate> g, const std::string pin_type)
@@ -124,6 +127,10 @@ std::shared_ptr<netlist> test_utils::create_example_netlist(const int id)
         nl->set_id(id);
     }
 
+    nl->set_device_name("example_netlist");
+    nl->set_design_name("test_design");
+    nl->get_top_module()->set_name("top");
+
     // Create the gates
     std::shared_ptr<gate> gate_0 = nl->create_gate(MIN_GATE_ID+0, "AND2", "gate_0");
     std::shared_ptr<gate> gate_1 = nl->create_gate(MIN_GATE_ID+1, "GND", "gate_1");
@@ -169,6 +176,9 @@ std::shared_ptr<netlist> test_utils::create_example_netlist_2(const int id)
     {
         nl->set_id(id);
     }
+    nl->set_device_name("example_netlist_2");
+    nl->set_design_name("test_design");
+    nl->get_top_module()->set_name("top");
 
     // Create the gates
     std::shared_ptr<gate> gate_0 = nl->create_gate(MIN_GATE_ID+0, "AND4", "gate_0");
@@ -201,6 +211,9 @@ std::shared_ptr<netlist> test_utils::create_example_netlist_negative(const int i
     {
         nl->set_id(id);
     }
+    nl->set_device_name("example_netlist_negative");
+    nl->set_design_name("test_design");
+    nl->get_top_module()->set_name("top");
 
     // Create the gate
     std::shared_ptr<gate> gate_0 = nl->create_gate(MIN_GATE_ID+0, "INV", "gate_0");
@@ -225,6 +238,10 @@ std::shared_ptr<netlist> test_utils::create_example_parse_netlist(int id)
     {
         nl->set_id(id);
     }
+
+    nl->set_device_name("example_netlist_negative");
+    nl->set_design_name("test_design");
+    nl->get_top_module()->set_name("top");
 
     // Create the gates
     std::shared_ptr<gate> gate_0 = nl->create_gate(MIN_GATE_ID+0, "AND2", "gate_0");
